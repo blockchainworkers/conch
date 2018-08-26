@@ -154,7 +154,7 @@ func DefaultBaseConfig() BaseConfig {
 		PrivValidator:     defaultPrivValPath,
 		NodeKey:           defaultNodeKeyPath,
 		Moniker:           defaultMoniker,
-		ProxyApp:          "tcp://127.0.0.1:26658",
+		ProxyApp:          "conchapp", //"tcp://127.0.0.1:26658",
 		ABCI:              "socket",
 		LogLevel:          DefaultPackageLogLevels(),
 		ProfListenAddress: "",

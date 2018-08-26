@@ -6,7 +6,7 @@ import (
 
 	"github.com/blockchainworkers/conch/libs/cli"
 
-	cmd "github.com/blockchainworkers/conch/cmd/tendermint/commands"
+	cmd "github.com/blockchainworkers/conch/cmd/conch/commands"
 	cfg "github.com/blockchainworkers/conch/config"
 	nm "github.com/blockchainworkers/conch/node"
 )

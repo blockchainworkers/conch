@@ -8,6 +8,7 @@ import (
 	abcicli "github.com/blockchainworkers/conch/abci/client"
 	"github.com/blockchainworkers/conch/abci/example/kvstore"
 	"github.com/blockchainworkers/conch/abci/types"
+	"github.com/blockchainworkers/conch/conchapp"
 )
 
 // NewABCIClient returns newly connected client
@@ -74,6 +75,8 @@ func DefaultClientCreator(addr, transport, dbDir string) ClientCreator {
 		return NewLocalClientCreator(kvstore.NewPersistentKVStoreApplication(dbDir))
 	case "nilapp":
 		return NewLocalClientCreator(types.NewBaseApplication())
+	case "conchapp":
+		return NewLocalClientCreator(conchapp.NewConchApplication(dbDir))
 	default:
 		mustConnect := false // loop retrying
 		return NewRemoteClientCreator(addr, transport, mustConnect)
