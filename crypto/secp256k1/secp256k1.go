@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/blockchainworkers/conch/crypto"
 	secp256k1 "github.com/btcsuite/btcd/btcec"
 	amino "github.com/tendermint/go-amino"
-	"github.com/blockchainworkers/conch/crypto"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -157,4 +157,15 @@ func (pubKey PubKeySecp256k1) Equals(other crypto.PubKey) bool {
 		return bytes.Equal(pubKey[:], otherSecp[:])
 	}
 	return false
+}
+
+// RecoverPublicKey from sign and hash to recover public. now only support secp256k1
+func RecoverPublicKey(sign, hash []byte) (crypto.PubKey, error) {
+	pubkeyObj, _, err := secp256k1.RecoverCompact(secp256k1.S256(), sign, hash)
+	if err != nil {
+		return nil, err
+	}
+	var pubkeyBytes PubKeySecp256k1
+	copy(pubkeyBytes[:], pubkeyObj.SerializeCompressed())
+	return pubkeyBytes, nil
 }
