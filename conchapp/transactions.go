@@ -7,8 +7,12 @@ import (
 	"fmt"
 	"github.com/blockchainworkers/conch/crypto"
 	"github.com/blockchainworkers/conch/crypto/secp256k1"
+	"math/big"
 	"sort"
 )
+
+// Transactions list of Transaction
+type Transactions []Transaction
 
 // Transaction tx type
 type Transaction struct {
@@ -34,6 +38,19 @@ func DecodeNewTx(date []byte) (*Transaction, error) {
 	var tx Transaction
 	err := json.Unmarshal(date, &tx)
 	return &tx, err
+}
+
+// BuildNewTx create a new tx
+func BuildNewTx(sender, receive, input, nonce string, time, refBlock, expired int64) *Transaction {
+	return &Transaction{
+		Sender:      sender,
+		Receiver:    receive,
+		Input:       input,
+		Nonce:       nonce,
+		TimeStamp:   time,
+		RefBlockNum: refBlock,
+		ExpiredNum:  int(expired),
+	}
 }
 
 //SignTx sign tx
@@ -130,4 +147,25 @@ func (tx *Transaction) FormCode() []byte {
 		continue
 	}
 	return []byte(dat)
+}
+
+// TransactionReceipt tx receipt
+type TransactionReceipt struct {
+	Status    int
+	Fee       *big.Int
+	BlockNum  int64
+	TxHash    string
+	Log       string
+	hashCache string
+}
+
+// Hash return hash
+func (txRep *TransactionReceipt) Hash() string {
+	if txRep.hashCache != "" {
+		return txRep.hashCache
+	}
+	code := fmt.Sprintf("block_num=%d&fee=%s&status=%d&tx_hash=%s&log=%s",
+		txRep.BlockNum, txRep.Fee.String(), txRep.Status, txRep.TxHash, txRep.Log)
+	txRep.hashCache = hex.EncodeToString(crypto.Sha256([]byte(code)))
+	return txRep.hashCache
 }
