@@ -6,21 +6,41 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/blockchainworkers/conch/crypto"
+	"github.com/blockchainworkers/conch/crypto/merkle"
 	"github.com/blockchainworkers/conch/crypto/secp256k1"
 	"math/big"
 	"sort"
 )
 
 // Transactions list of Transaction
-type Transactions []Transaction
+type Transactions []*Transaction
+
+//Len return length
+func (txs Transactions) Len() int { return len(txs) }
+
+//HashRoot merkle root
+func (txs Transactions) HashRoot() string {
+	hasers := make([]merkle.Hasher, 0, txs.Len())
+	for i := range txs {
+		hasers = append(hasers, (txs)[i])
+	}
+	h := merkle.SimpleHashFromHashers(hasers)
+	return hex.EncodeToString(h)
+}
+
+// AppendTx append an tx
+func (txs Transactions) AppendTx(tx *Transaction) Transactions {
+	txs = append(txs, tx)
+	return txs
+}
 
 // Transaction tx type
 type Transaction struct {
-	Sender   string `json:"sender"`
-	Receiver string `json:"receiver"`
-	Input    string `json:"input"`
-	Sign     string `json:"sign"`
-	// Status      bool   `json:"status"`
+	Sender      string `json:"sender"`
+	Receiver    string `json:"receiver"`
+	Input       string `json:"input"`
+	Sign        string `json:"sign"`
+	Value       string `json:"value"`
 	TimeStamp   int64  `json:"time"`
 	RefBlockNum int64  `json:"ref_block"`
 	Nonce       string `json:"nonce"`
@@ -90,6 +110,14 @@ func (tx *Transaction) TxID() string {
 	return tx.Cache.id
 }
 
+// Hash return tx's unique hash value
+func (tx *Transaction) Hash() []byte {
+	if tx.Cache.id == "" {
+		tx.Cache.id = hex.EncodeToString(tx.hashCache())
+	}
+	return []byte(tx.Cache.id)
+}
+
 // -------priv func ----
 
 func (tx *Transaction) signCache(privKey crypto.PrivKey) ([]byte, error) {
@@ -126,7 +154,7 @@ func (tx *Transaction) codeCache() []byte {
 // FormCode organize tx field content then marshal
 func (tx *Transaction) FormCode() []byte {
 	val := make(map[string]interface{})
-	keys := []string{"sender", "receiver", "input", "time", "ref_block", "nonce", "expired"}
+	keys := []string{"sender", "receiver", "value", "input", "time", "ref_block", "nonce", "expired"}
 	val["sender"] = tx.Sender
 	val["receiver"] = tx.Receiver
 	val["input"] = tx.Input
@@ -134,6 +162,7 @@ func (tx *Transaction) FormCode() []byte {
 	val["ref_block"] = tx.RefBlockNum
 	val["nonce"] = tx.Nonce
 	val["expired"] = tx.ExpiredNum
+	val["value"] = tx.Value
 
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 	dat := ""

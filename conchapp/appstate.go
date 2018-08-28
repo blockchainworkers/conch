@@ -101,8 +101,40 @@ func NewAccount(addr, amount string) *Account {
 // TxState means current tx's info
 type TxState struct {
 	sync.RWMutex
-	accounts map[string]*Account
+	Txs      Transactions
+	CurBlock int64
 	log      *log.Logger
 	db       *sqlx.DB
-	isDirty  bool
+}
+
+// NewTxState txstate inst
+func NewTxState(db *sqlx.DB, log *log.Logger) *TxState {
+	return &TxState{
+		Txs: Transactions{},
+		log: log,
+		db:  db,
+	}
+}
+
+// UpdateTx append tx
+func (txState *TxState) UpdateTx(tx *Transaction, curBlock int64) {
+	txState.Txs = txState.Txs.AppendTx(tx)
+	txState.CurBlock = curBlock
+}
+
+// SyncToDisk write tx to db
+func (txState *TxState) SyncToDisk() (hashRoot string, err error) {
+	if txState.Txs.Len() == 0 {
+		return txState.Txs.HashRoot(), nil
+	}
+
+	sqlStr := "replace into transaction_records(id, sender, receiver, amount, input, expired, time_stamp, nonce, ref_block_num, block_num, sign) values "
+	for _, val := range txState.Txs {
+		sqlStr = sqlStr + fmt.Sprintf(" ('%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%d', '%d', '%s'),",
+			val.TxID(), val.Sender, val.Receiver, val.Value, val.Input, val.ExpiredNum, val.TimeStamp, val.Nonce, val.RefBlockNum, txState.CurBlock, val.Sign)
+	}
+	sqlStr = sqlStr[0 : len(sqlStr)-2]
+	_, err = txState.db.Exec(sqlStr)
+	// merkle tree
+	return txState.Txs.HashRoot(), err
 }
