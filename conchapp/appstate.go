@@ -119,7 +119,9 @@ func NewTxState(db *sqlx.DB, log *log.Logger) *TxState {
 // UpdateTx append tx
 func (txState *TxState) UpdateTx(tx *Transaction, curBlock int64) {
 	txState.Txs = txState.Txs.AppendTx(tx)
+	txState.RLock()
 	txState.CurBlock = curBlock
+	txState.RUnlock()
 }
 
 // SyncToDisk write tx to db
@@ -136,5 +138,61 @@ func (txState *TxState) SyncToDisk() (hashRoot string, err error) {
 	sqlStr = sqlStr[0 : len(sqlStr)-2]
 	_, err = txState.db.Exec(sqlStr)
 	// merkle tree
-	return txState.Txs.HashRoot(), err
+	hashRoot = txState.Txs.HashRoot()
+
+	// new trans for next commit
+	txState.RLock()
+	txState.Txs = Transactions{}
+	txState.RUnlock()
+	return
+}
+
+// TxRepState means current tx receipt's info
+type TxRepState struct {
+	sync.RWMutex
+	Txreps   TransactionReceipts
+	CurBlock int64
+	log      *log.Logger
+	db       *sqlx.DB
+}
+
+// NewTxRepState tx receipt inst
+func NewTxRepState(db *sqlx.DB, log *log.Logger) *TxRepState {
+	return &TxRepState{
+		Txreps: TransactionReceipts{},
+		log:    log,
+		db:     db,
+	}
+}
+
+// UpdateTxRep append tx
+func (txrSt *TxRepState) UpdateTxRep(tr *TransactionReceipt, curBlock int64) {
+	txrSt.Txreps = txrSt.Txreps.AppendTxrp(tr)
+	txrSt.RLock()
+	txrSt.CurBlock = curBlock
+	txrSt.RUnlock()
+}
+
+// SyncToDisk write tx to db
+func (txrSt *TxRepState) SyncToDisk() (hashRoot string, err error) {
+	if txrSt.Txreps.Len() == 0 {
+		return txrSt.Txreps.HashRoot(), nil
+	}
+	// id | status | fee | block_num | tx_hash | log
+
+	sqlStr := "replace into transaction_receipts (id, status, fee, block_num, tx_hash, log) values "
+	for _, val := range txrSt.Txreps {
+		sqlStr = sqlStr + fmt.Sprintf(" ('%s', '%d', '%s', '%d', '%s', '%s'),",
+			string(val.Hash()), val.Status, val.Fee.String(), txrSt.CurBlock, val.TxHash, val.Log)
+	}
+	sqlStr = sqlStr[0 : len(sqlStr)-2]
+	_, err = txrSt.db.Exec(sqlStr)
+	// merkle tree
+	hashRoot = txrSt.Txreps.HashRoot()
+
+	// new trans for next commit
+	txrSt.RLock()
+	txrSt.Txreps = TransactionReceipts{}
+	txrSt.RUnlock()
+	return
 }

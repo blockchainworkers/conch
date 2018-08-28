@@ -189,12 +189,34 @@ type TransactionReceipt struct {
 }
 
 // Hash return hash
-func (txRep *TransactionReceipt) Hash() string {
+func (txRep *TransactionReceipt) Hash() []byte {
 	if txRep.hashCache != "" {
-		return txRep.hashCache
+		return []byte(txRep.hashCache)
 	}
 	code := fmt.Sprintf("block_num=%d&fee=%s&status=%d&tx_hash=%s&log=%s",
 		txRep.BlockNum, txRep.Fee.String(), txRep.Status, txRep.TxHash, txRep.Log)
 	txRep.hashCache = hex.EncodeToString(crypto.Sha256([]byte(code)))
-	return txRep.hashCache
+	return []byte(txRep.hashCache)
+}
+
+// TransactionReceipts trxreps
+type TransactionReceipts []*TransactionReceipt
+
+//Len return length
+func (txrp TransactionReceipts) Len() int { return len(txrp) }
+
+//HashRoot merkle root
+func (txrp TransactionReceipts) HashRoot() string {
+	hasers := make([]merkle.Hasher, 0, txrp.Len())
+	for i := range txrp {
+		hasers = append(hasers, txrp[i])
+	}
+	h := merkle.SimpleHashFromHashers(hasers)
+	return hex.EncodeToString(h)
+}
+
+// AppendTxrp append an tx receipt
+func (txrp TransactionReceipts) AppendTxrp(trp *TransactionReceipt) TransactionReceipts {
+	txrp = append(txrp, trp)
+	return txrp
 }
