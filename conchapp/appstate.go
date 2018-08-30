@@ -2,12 +2,16 @@ package conchapp
 
 import (
 	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/blockchainworkers/conch/crypto"
 	"github.com/blockchainworkers/conch/libs/log"
 	"github.com/jmoiron/sqlx"
 	"math/big"
 	"sync"
+	"time"
 )
 
 // AccountState means current account's info
@@ -199,6 +203,7 @@ type HeaderState struct {
 	CurBlockNum  int64  `json:"cur_block_num"`
 	CurBlockHash string `json:"cur_block_hash"`
 	CurAPPHash   string `json:"cur_app_hash"`
+	Fee          *big.Int
 	db           *sqlx.DB
 	log          log.Logger
 }
@@ -230,20 +235,100 @@ func (hdSt *HeaderState) SyncToDisk() error {
 	return err
 }
 
+// BlockState current app block state
+type BlockState struct {
+	APPHash   string
+	TxRoot    string
+	TxRepRoot string
+	BlockHash string
+	BlockNum  int64
+	TimeStamp int64
+	db        *sqlx.DB
+}
+
+// NewBlockState block state instance
+func NewBlockState(db *sqlx.DB) *BlockState {
+	return &BlockState{db: db}
+}
+
+//Hash return apphash
+func (bs *BlockState) Hash() string {
+	if bs.APPHash != "" {
+		return bs.APPHash
+	}
+	code := fmt.Sprintf("block_hash=%s&block_num=%d&tx_root=%s&receipt_root=%s&time_stamp=%d",
+		bs.BlockHash, bs.BlockNum, bs.TxRoot, bs.TxRepRoot, bs.TimeStamp)
+	dat := []byte(code)
+	buf := make([]byte, base64.StdEncoding.EncodedLen(len(dat)))
+	base64.StdEncoding.Encode(buf, dat)
+	bs.APPHash = hex.EncodeToString(crypto.Sha256(buf))
+	return bs.APPHash
+}
+
+// SyncToDisk to db
+func (bs *BlockState) SyncToDisk() error {
+	hash := bs.Hash()
+	//apphash | block_hash | block_num | tx_root | receipt_root | time_stamp
+	sqlStr := fmt.Sprintf(`replace into block_records (apphash, block_hash, block_num, tx_root, receipt_root, time_stamp) value
+	 ('%s', '%s', '%d', '%s', '%s', '%d' )`, hash, bs.BlockHash, bs.BlockNum, bs.TxRoot, bs.TxRepRoot, bs.TimeStamp)
+	_, err := bs.db.Exec(sqlStr)
+	return err
+}
+
 // APPState state set
 type APPState struct {
 	HeadSt   *HeaderState
 	AccoutSt *AccountState
 	TxSt     *TxState
 	TxRepSt  *TxRepState
+	BlkSt    *BlockState
 }
 
 //NewAPPState return app state init db (if db is not exist create the database and tables)
 func NewAPPState(db *sqlx.DB, log log.Logger) *APPState {
 	return &APPState{
-		HeadSt:   &HeaderState{db: db, log: log},
+		HeadSt:   &HeaderState{db: db, log: log, Fee: big.NewInt(0)},
 		AccoutSt: NewAccountState(db, log),
 		TxSt:     NewTxState(db, log),
 		TxRepSt:  NewTxRepState(db, log),
+		BlkSt:    NewBlockState(db),
 	}
+}
+
+// Commit commit an state return apphash, err
+func (appSt *APPState) Commit() (string, error) {
+	// 1. iter tx
+	// 2. exec tx and update transaction receipt then update account
+	// 3. all transaction have been exec ? then goto 1.
+	// 4. sync to db
+
+	vm := NewVMActuator(appSt)
+
+	for iter := range appSt.TxSt.Txs {
+		if err := vm.ExecuteTx(appSt.TxSt.Txs[iter]); err != nil {
+			appSt.TxSt.log.Error("execurate transaction err: ", err.Error())
+		}
+	}
+
+	// sync account state
+	appSt.AccoutSt.SyncToDisk()
+
+	// sync tx state
+	txRoot, _ := appSt.TxSt.SyncToDisk(appSt.HeadSt.CurBlockNum)
+
+	// sync tx receipt state
+	txrepRoot, _ := appSt.TxRepSt.SyncToDisk(appSt.HeadSt.CurBlockNum)
+
+	// upadte block state
+	appSt.BlkSt.BlockHash = appSt.HeadSt.CurBlockHash
+	appSt.BlkSt.BlockNum = appSt.HeadSt.CurBlockNum
+	appSt.BlkSt.TxRoot = txRoot
+	appSt.BlkSt.TxRepRoot = txrepRoot
+	appSt.BlkSt.TimeStamp = time.Now().Unix()
+	appSt.BlkSt.SyncToDisk()
+
+	// todo:: all tx's fee need be processed
+	appSt.HeadSt.CurAPPHash = appSt.BlkSt.Hash()
+
+	return appSt.HeadSt.CurAPPHash, nil
 }

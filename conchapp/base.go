@@ -98,7 +98,7 @@ func (app *ConchApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 		return types.ResponseDeliverTx{Code: 1, Info: "tx args err", Log: "deliver tx err in tx value"}
 	}
 
-	if account.Amount.Cmp(val) < 0 {
+	if account.Amount.Cmp(val.Add(val, trans.FeeCalc())) < 0 {
 		app.logger.Error("when deliver tx, account Insufficient balance")
 		return types.ResponseDeliverTx{Code: 1, Info: "Insufficient balance", Log: "deliver tx err in account balance"}
 	}
@@ -137,7 +137,7 @@ func (app *ConchApplication) CheckTx(tx []byte) types.ResponseCheckTx {
 		return types.ResponseCheckTx{Code: 1, Info: "tx args err", Log: "check tx err in tx value"}
 	}
 
-	if account.Amount.Cmp(val) < 0 {
+	if account.Amount.Cmp(val.Add(val, trans.FeeCalc())) < 0 {
 		app.logger.Error("when checking tx, account Insufficient balance")
 		return types.ResponseCheckTx{Code: 1, Info: "Insufficient balance", Log: "check tx err in account balance"}
 	}
@@ -153,6 +153,12 @@ func (app *ConchApplication) CheckTx(tx []byte) types.ResponseCheckTx {
 // Commit will panic if InitChain was not called
 func (app *ConchApplication) Commit() types.ResponseCommit {
 	// todo:: Commit is very import  exect tx update state
+	// when commit be exec it means all transaction in this block should have been delivered
+	// we should exec transaction then give an receipt for every tx
+	// when all transactions have been exec comit tx's state txreceipt's state
+	// account's state to db
+
+	app.state.Commit()
 	return types.ResponseCommit{Data: []byte("88888")}
 }
 
@@ -175,6 +181,7 @@ func (app *ConchApplication) InitChain(req types.RequestInitChain) types.Respons
 //BeginBlock Track the block hash and header information
 func (app *ConchApplication) BeginBlock(req types.RequestBeginBlock) types.ResponseBeginBlock {
 	app.state.HeadSt.CurBlockHash = string(req.Hash)
+
 	return types.ResponseBeginBlock{}
 }
 

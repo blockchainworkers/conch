@@ -141,6 +141,20 @@ func (tx *Transaction) Hash() []byte {
 	return []byte(tx.Cache.id)
 }
 
+// FeeCalc calc tx fee
+func (tx *Transaction) FeeCalc() *big.Int {
+	// if tx.input is empty we only charge an base fee 100 gravel
+	// now 1 conch == 10**8 gravel
+
+	if len(tx.Input) < 65 {
+		return big.NewInt(100)
+	}
+	baseCharge := big.NewInt(100)
+	inputCharg := big.NewInt(10)
+	inputCharg = inputCharg.Mul(inputCharg, big.NewInt(int64(len(tx.Input))))
+	return baseCharge.Add(baseCharge, inputCharg)
+}
+
 // -------priv func ----
 
 func (tx *Transaction) signCache(privKey crypto.PrivKey) ([]byte, error) {
