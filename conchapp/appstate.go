@@ -330,5 +330,8 @@ func (appSt *APPState) Commit() (string, error) {
 	// todo:: all tx's fee need be processed
 	appSt.HeadSt.CurAPPHash = appSt.BlkSt.Hash()
 
+	// sync state
+	appSt.HeadSt.SyncToDisk()
+
 	return appSt.HeadSt.CurAPPHash, nil
 }

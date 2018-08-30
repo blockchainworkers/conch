@@ -158,8 +158,11 @@ func (app *ConchApplication) Commit() types.ResponseCommit {
 	// when all transactions have been exec comit tx's state txreceipt's state
 	// account's state to db
 
-	app.state.Commit()
-	return types.ResponseCommit{Data: []byte("88888")}
+	appHash, err := app.state.Commit()
+	if err != nil {
+		app.logger.Error("commit err: ", err.Error())
+	}
+	return types.ResponseCommit{Data: []byte(appHash)}
 }
 
 // Query for query info
@@ -181,7 +184,7 @@ func (app *ConchApplication) InitChain(req types.RequestInitChain) types.Respons
 //BeginBlock Track the block hash and header information
 func (app *ConchApplication) BeginBlock(req types.RequestBeginBlock) types.ResponseBeginBlock {
 	app.state.HeadSt.CurBlockHash = string(req.Hash)
-
+	// req.ByzantineValidators
 	return types.ResponseBeginBlock{}
 }
 

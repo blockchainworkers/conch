@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/blockchainworkers/conch/account"
 	"github.com/blockchainworkers/conch/crypto"
 	"github.com/blockchainworkers/conch/crypto/merkle"
 	"github.com/blockchainworkers/conch/crypto/secp256k1"
@@ -102,12 +103,12 @@ func (tx *Transaction) IsValidTx() bool {
 	if err != nil {
 		return false
 	}
-	return pub.Address().String() == tx.Sender
+	return account.PublicKeyToAddress(pub) == tx.Sender
 }
 
 // CheckArgs tx's args is vaild
 func (tx *Transaction) CheckArgs() bool {
-	if tx.Sender == "" {
+	if !account.CheckAddressValid(tx.Sender) {
 		return false
 	}
 	if tx.Nonce == "" {

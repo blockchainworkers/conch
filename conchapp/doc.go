@@ -139,6 +139,8 @@ func initDatabase(db *sqlx.DB) error {
 		id INTEGER PRIMARY KEY NOT NULL default '1',
 		content TEXT not null default '{}'
 	);
+
+	insert into funds (address, amount, create_time, update_time) value('CONCH2smxiYHvzFTsK3di3Rd6rJCQgrCN', '86400', '1535630312', '1535630312')
 	`
 
 	_, err := db.Exec(sqlStr)
