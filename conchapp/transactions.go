@@ -88,6 +88,9 @@ func (tx *Transaction) IsValidTx() bool {
 	// 1. from sign and content to recover public key
 	// 2. from public key to generate address
 	// 3. check the address qeual sender or not
+	if !tx.CheckArgs() {
+		return false
+	}
 
 	// todo:: only secp256k1 support recover publickey
 	msg := tx.hashCache()
@@ -100,6 +103,26 @@ func (tx *Transaction) IsValidTx() bool {
 		return false
 	}
 	return pub.Address().String() == tx.Sender
+}
+
+// CheckArgs tx's args is vaild
+func (tx *Transaction) CheckArgs() bool {
+	if tx.Sender == "" {
+		return false
+	}
+	if tx.Nonce == "" {
+		return false
+	}
+	if tx.RefBlockNum == 0 {
+		return false
+	}
+	if tx.Sign == "" {
+		return false
+	}
+	if _, r := new(big.Int).SetString(tx.Value, 0); !r {
+		return false
+	}
+	return true
 }
 
 // TxID return tx's unique hash value

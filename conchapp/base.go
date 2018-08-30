@@ -2,8 +2,14 @@ package conchapp
 
 import (
 	"github.com/blockchainworkers/conch/abci/types"
-	dbm "github.com/blockchainworkers/conch/libs/db"
+	"math/big"
+	"os"
+	//dbm "github.com/blockchainworkers/conch/libs/db"
+	"encoding/json"
 	"github.com/blockchainworkers/conch/libs/log"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/mattn/go-sqlite3" // import sqlite
+	"path"
 )
 
 //-----------------------------------------
@@ -14,21 +20,29 @@ var _ types.Application = (*ConchApplication)(nil)
 type ConchApplication struct {
 	// validator set
 	ValUpdates []types.Validator
-	state      dbm.DB
 	logger     log.Logger
+	state      *APPState
 }
 
 // NewConchApplication return new instance
 func NewConchApplication(dbDir string) *ConchApplication {
 	name := "conchapplication"
-	db, err := dbm.NewGoLevelDB(name, dbDir)
+
+	db, err := sqlx.Open("sqlite3", path.Join(dbDir, name+".db"))
 	if err != nil {
 		panic(err)
 	}
+	if err := initDatabase(db); err != nil {
+		panic(err)
+	}
 
+	//init logger
+	logInst := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+	// init appsate
+	appSt := NewAPPState(db, logInst)
 	return &ConchApplication{
-		logger: log.NewNopLogger(),
-		state:  db,
+		logger: logInst,
+		state:  appSt,
 	}
 }
 
@@ -39,8 +53,18 @@ func (app *ConchApplication) SetLogger(l log.Logger) {
 
 // Info impl interface
 func (app *ConchApplication) Info(req types.RequestInfo) types.ResponseInfo {
-	// todo:: need impl
+	// load state from
+	err := app.state.HeadSt.LoadHeaderState()
+	if err != nil {
+		app.logger.Error("load state from db err , ", err.Error())
+		panic(err)
+	}
+
 	var res types.ResponseInfo
+	res.LastBlockAppHash = []byte(app.state.HeadSt.CurAPPHash)
+	res.LastBlockHeight = app.state.HeadSt.CurBlockNum
+	res.Version = "v0.01"
+	res.Data = "conch is an virtual currency"
 	return res
 }
 
@@ -53,19 +77,82 @@ func (app *ConchApplication) SetOption(req types.RequestSetOption) types.Respons
 
 //DeliverTx deleiver an transaction to app
 func (app *ConchApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
-	// todo::
+	// put tx in cahce then exec them when commit
+	var trans Transaction
+	err := json.Unmarshal(tx, &trans)
+	if err != nil {
+		app.logger.Error("when deliver tx, tx can not be UnMarshal, tx: ", string(tx))
+		return types.ResponseDeliverTx{Code: 1, Info: err.Error(), Log: "deliver tx err in json unmarshal"}
+	}
+
+	// try load account amount
+	account, err := app.state.AccoutSt.LoadAccount(trans.Sender)
+	if err != nil {
+		app.logger.Error("when deliver tx, load accout info err: ", err.Error())
+		return types.ResponseDeliverTx{Code: 1, Info: err.Error(), Log: "deliver tx err in loading account"}
+	}
+
+	val, ret := new(big.Int).SetString(trans.Value, 0)
+	if !ret {
+		app.logger.Error("when deliver tx, tx value can't be string of number")
+		return types.ResponseDeliverTx{Code: 1, Info: "tx args err", Log: "deliver tx err in tx value"}
+	}
+
+	if account.Amount.Cmp(val) < 0 {
+		app.logger.Error("when deliver tx, account Insufficient balance")
+		return types.ResponseDeliverTx{Code: 1, Info: "Insufficient balance", Log: "deliver tx err in account balance"}
+	}
+
+	if !trans.IsValidTx() {
+		app.logger.Error("when deliver tx, tx is not valid")
+		return types.ResponseDeliverTx{Code: 1, Info: "sign not valid", Log: "deliver tx err in tx sign"}
+	}
+
+	app.state.TxSt.UpdateTx(&trans)
 	return types.ResponseDeliverTx{Code: types.CodeTypeOK}
 }
 
 // CheckTx is called when one tx need be send in mempool
 func (app *ConchApplication) CheckTx(tx []byte) types.ResponseCheckTx {
-	// todo::
+	// 1. tx should be UnMarshal truct
+	// 2. check account amount is enough
+	// 3. check sign is right
+	var trans Transaction
+	err := json.Unmarshal(tx, &trans)
+	if err != nil {
+		app.logger.Error("when checking tx, tx can not be UnMarshal, tx: ", string(tx))
+		return types.ResponseCheckTx{Code: 1, Info: err.Error(), Log: "check tx err in json unmarshal"}
+	}
+
+	// try load account amount
+	account, err := app.state.AccoutSt.LoadAccount(trans.Sender)
+	if err != nil {
+		app.logger.Error("when checking tx, load accout info err: ", err.Error())
+		return types.ResponseCheckTx{Code: 1, Info: err.Error(), Log: "check tx err in loading account"}
+	}
+
+	val, ret := new(big.Int).SetString(trans.Value, 0)
+	if !ret {
+		app.logger.Error("when checking tx, tx value can't be string of number")
+		return types.ResponseCheckTx{Code: 1, Info: "tx args err", Log: "check tx err in tx value"}
+	}
+
+	if account.Amount.Cmp(val) < 0 {
+		app.logger.Error("when checking tx, account Insufficient balance")
+		return types.ResponseCheckTx{Code: 1, Info: "Insufficient balance", Log: "check tx err in account balance"}
+	}
+
+	if !trans.IsValidTx() {
+		app.logger.Error("when checking tx, tx is not valid")
+		return types.ResponseCheckTx{Code: 1, Info: "sign not valid", Log: "check tx err in tx sign"}
+	}
+
 	return types.ResponseCheckTx{Code: types.CodeTypeOK}
 }
 
 // Commit will panic if InitChain was not called
 func (app *ConchApplication) Commit() types.ResponseCommit {
-	// todo::
+	// todo:: Commit is very import  exect tx update state
 	return types.ResponseCommit{Data: []byte("88888")}
 }
 
@@ -87,13 +174,13 @@ func (app *ConchApplication) InitChain(req types.RequestInitChain) types.Respons
 
 //BeginBlock Track the block hash and header information
 func (app *ConchApplication) BeginBlock(req types.RequestBeginBlock) types.ResponseBeginBlock {
-	//todo:: reset valset changes
-
+	app.state.HeadSt.CurBlockHash = string(req.Hash)
 	return types.ResponseBeginBlock{}
 }
 
 //EndBlock Update the validator set
 func (app *ConchApplication) EndBlock(req types.RequestEndBlock) types.ResponseEndBlock {
-	// todo::
+	app.state.HeadSt.CurBlockNum = req.Height
+
 	return types.ResponseEndBlock{ValidatorUpdates: app.ValUpdates}
 }
