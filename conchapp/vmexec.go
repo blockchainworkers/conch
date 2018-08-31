@@ -45,6 +45,7 @@ func (vm *VMActuator) ExecuteTx(tx *Transaction) error {
 	}
 
 	// exec success
+	txrp.Status = 1
 	sender.Amount.Sub(sender.Amount, big.NewInt(0).Add(value, fee))
 	receiver.Amount.Add(receiver.Amount, value)
 	vm.appSt.AccoutSt.UpdateAccountCache(sender)
