@@ -147,10 +147,7 @@ func (tx *Transaction) TxID() string {
 
 // Hash return tx's unique hash value
 func (tx *Transaction) Hash() []byte {
-	if tx.Cache.id == "" {
-		tx.Cache.id = hex.EncodeToString(tx.hashCache())
-	}
-	return []byte(tx.Cache.id)
+	return tx.hashCache()
 }
 
 // FeeCalc calc tx fee
@@ -242,18 +239,24 @@ type TransactionReceipt struct {
 	BlockNum  int64
 	TxHash    string
 	Log       string
-	hashCache string
+	hashCache []byte
 }
 
 // Hash return hash
 func (txRep *TransactionReceipt) Hash() []byte {
-	if txRep.hashCache != "" {
-		return []byte(txRep.hashCache)
+	if txRep.hashCache != nil {
+		return txRep.hashCache
 	}
 	code := fmt.Sprintf("block_num=%d&fee=%s&status=%d&tx_hash=%s&log=%s",
 		txRep.BlockNum, txRep.Fee.String(), txRep.Status, txRep.TxHash, txRep.Log)
-	txRep.hashCache = hex.EncodeToString(crypto.Sha256([]byte(code)))
-	return []byte(txRep.hashCache)
+	txRep.hashCache = crypto.Sha256([]byte(code))
+	return txRep.hashCache
+}
+
+// ID return hash
+func (txRep *TransactionReceipt) ID() string {
+	hash := txRep.Hash()
+	return hex.EncodeToString(hash)
 }
 
 // TransactionReceipts trxreps

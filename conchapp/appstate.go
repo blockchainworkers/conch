@@ -186,7 +186,7 @@ func (txrSt *TxRepState) SyncToDisk(height int64) (hashRoot string, err error) {
 	sqlStr := "replace into transaction_receipts (id, status, fee, block_num, tx_hash, log) values "
 	for _, val := range txrSt.Txreps {
 		sqlStr = sqlStr + fmt.Sprintf(" ('%s', '%d', '%s', '%d', '%s', '%s'),",
-			string(val.Hash()), val.Status, val.Fee.String(), height, val.TxHash, val.Log)
+			string(val.ID()), val.Status, val.Fee.String(), height, val.TxHash, val.Log)
 	}
 	sqlStr = sqlStr[0 : len(sqlStr)-1]
 
