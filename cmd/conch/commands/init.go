@@ -6,10 +6,10 @@ import (
 	"github.com/spf13/cobra"
 
 	cfg "github.com/blockchainworkers/conch/config"
+	cmn "github.com/blockchainworkers/conch/libs/common"
 	"github.com/blockchainworkers/conch/p2p"
 	"github.com/blockchainworkers/conch/privval"
 	"github.com/blockchainworkers/conch/types"
-	cmn "github.com/blockchainworkers/conch/libs/common"
 )
 
 // InitFilesCmd initialises a fresh Tendermint Core instance.

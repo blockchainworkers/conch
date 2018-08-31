@@ -142,6 +142,11 @@ func (pubKey PubKeySecp256k1) Bytes() []byte {
 	return bz
 }
 
+// ByteArray returns byte array
+func (pubKey PubKeySecp256k1) ByteArray() []byte {
+	return pubKey[:]
+}
+
 func (pubKey PubKeySecp256k1) VerifyBytes(msg []byte, sig []byte) bool {
 	pub, err := secp256k1.ParsePubKey(pubKey[:], secp256k1.S256())
 	if err != nil {

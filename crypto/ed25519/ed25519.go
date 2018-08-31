@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/blockchainworkers/conch/crypto"
+	"github.com/blockchainworkers/conch/crypto/tmhash"
 	"github.com/tendermint/ed25519"
 	"github.com/tendermint/ed25519/extra25519"
 	amino "github.com/tendermint/go-amino"
-	"github.com/blockchainworkers/conch/crypto"
-	"github.com/blockchainworkers/conch/crypto/tmhash"
 )
 
 //-------------------------------------
@@ -154,6 +154,11 @@ func (pubKey PubKeyEd25519) Bytes() []byte {
 		panic(err)
 	}
 	return bz
+}
+
+// ByteArray return byte array
+func (pubKey PubKeyEd25519) ByteArray() []byte {
+	return pubKey[:]
 }
 
 func (pubKey PubKeyEd25519) VerifyBytes(msg []byte, sig_ []byte) bool {

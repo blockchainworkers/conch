@@ -19,6 +19,7 @@ type Address = cmn.HexBytes
 type PubKey interface {
 	Address() Address
 	Bytes() []byte
+	ByteArray() []byte
 	VerifyBytes(msg []byte, sig []byte) bool
 	Equals(PubKey) bool
 }

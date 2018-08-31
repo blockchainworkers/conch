@@ -201,6 +201,7 @@ func (app *ConchApplication) InitChain(req types.RequestInitChain) types.Respons
 //BeginBlock Track the block hash and header information
 func (app *ConchApplication) BeginBlock(req types.RequestBeginBlock) types.ResponseBeginBlock {
 	app.state.HeadSt.CurBlockHash = hex.EncodeToString(req.Hash)
+	//app.ValUpdates
 	// req.ByzantineValidators
 	return types.ResponseBeginBlock{}
 }
