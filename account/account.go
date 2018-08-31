@@ -10,11 +10,14 @@ import (
 // AddrPrefix ...
 var AddrPrefix = "CONCH"
 
+//AddrVersion base58 check version
+var AddrVersion byte = 88
+
 //GenerateAccout create account
 func GenerateAccout() (string, string) {
 	privkey := secp256k1.GenPrivKey()
 
-	return hex.EncodeToString([]byte(privkey[:])), AddrPrefix + base58.Encode(privkey.PubKey().Address())
+	return hex.EncodeToString([]byte(privkey[:])), AddrPrefix + base58.CheckEncode(privkey.PubKey().Address(), AddrVersion)
 }
 
 // LoadPrivKey from string to privkey
@@ -30,12 +33,12 @@ func LoadPrivKey(prikey string) (crypto.PrivKey, error) {
 
 // PublicKeyToAddress pub to address
 func PublicKeyToAddress(pub crypto.PubKey) string {
-	return AddrPrefix + base58.Encode(pub.Address())
+	return AddrPrefix + base58.CheckEncode(pub.Address(), AddrVersion)
 }
 
 // PrivKeyToAddress priv to address
 func PrivKeyToAddress(priv crypto.PrivKey) string {
-	return AddrPrefix + base58.Encode(priv.PubKey().Address())
+	return AddrPrefix + base58.CheckEncode(priv.PubKey().Address(), AddrVersion)
 }
 
 // CheckAddressValid address is valid or not

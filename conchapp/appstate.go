@@ -84,7 +84,7 @@ func (as *AccountState) SyncToDisk() error {
 	for _, val := range as.accounts {
 		sqlStr = sqlStr + fmt.Sprintf(" ('%s', '%s'),", val.Address, val.Amount.String())
 	}
-	sqlStr = sqlStr[0 : len(sqlStr)-2]
+	sqlStr = sqlStr[0 : len(sqlStr)-1]
 	_, err := as.db.Exec(sqlStr)
 	as.accounts = make(map[string]*Account)
 	return err
@@ -124,6 +124,7 @@ func NewTxState(db *sqlx.DB, log log.Logger) *TxState {
 func (txState *TxState) UpdateTx(tx *Transaction) {
 	txState.Lock()
 	defer txState.Unlock()
+	txState.log.Error("one tx has been executed.......")
 	txState.Txs = txState.Txs.AppendTx(tx)
 }
 
@@ -138,7 +139,8 @@ func (txState *TxState) SyncToDisk(height int64) (hashRoot string, err error) {
 		sqlStr = sqlStr + fmt.Sprintf(" ('%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%d', '%d', '%s'),",
 			val.TxID(), val.Sender, val.Receiver, val.Value, val.Input, val.ExpiredNum, val.TimeStamp, val.Nonce, val.RefBlockNum, height, val.Sign)
 	}
-	sqlStr = sqlStr[0 : len(sqlStr)-2]
+	sqlStr = sqlStr[0 : len(sqlStr)-1]
+
 	_, err = txState.db.Exec(sqlStr)
 	// merkle tree
 	hashRoot = txState.Txs.HashRoot()
@@ -186,7 +188,8 @@ func (txrSt *TxRepState) SyncToDisk(height int64) (hashRoot string, err error) {
 		sqlStr = sqlStr + fmt.Sprintf(" ('%s', '%d', '%s', '%d', '%s', '%s'),",
 			string(val.Hash()), val.Status, val.Fee.String(), height, val.TxHash, val.Log)
 	}
-	sqlStr = sqlStr[0 : len(sqlStr)-2]
+	sqlStr = sqlStr[0 : len(sqlStr)-1]
+
 	_, err = txrSt.db.Exec(sqlStr)
 	// merkle tree
 	hashRoot = txrSt.Txreps.HashRoot()
@@ -229,7 +232,7 @@ func (hdSt *HeaderState) SyncToDisk() error {
 		return err
 	}
 
-	sqlStr := fmt.Sprintf("replace into state (id, content) value ('%d', '%s')", 1, string(dat))
+	sqlStr := fmt.Sprintf("replace into state (id, content) values ('%d', '%s')", 1, string(dat))
 	_, err = hdSt.db.Exec(sqlStr)
 
 	return err
@@ -244,20 +247,21 @@ type BlockState struct {
 	BlockNum  int64
 	TimeStamp int64
 	db        *sqlx.DB
+	log       log.Logger
 }
 
 // NewBlockState block state instance
-func NewBlockState(db *sqlx.DB) *BlockState {
-	return &BlockState{db: db}
+func NewBlockState(db *sqlx.DB, log log.Logger) *BlockState {
+	return &BlockState{db: db, log: log}
 }
 
 //Hash return apphash
 func (bs *BlockState) Hash() string {
-	if bs.APPHash != "" {
-		return bs.APPHash
-	}
+
 	code := fmt.Sprintf("block_hash=%s&block_num=%d&tx_root=%s&receipt_root=%s&time_stamp=%d",
 		bs.BlockHash, bs.BlockNum, bs.TxRoot, bs.TxRepRoot, bs.TimeStamp)
+
+	// bs.log.Error("show blk code ", "code", code)
 	dat := []byte(code)
 	buf := make([]byte, base64.StdEncoding.EncodedLen(len(dat)))
 	base64.StdEncoding.Encode(buf, dat)
@@ -269,7 +273,7 @@ func (bs *BlockState) Hash() string {
 func (bs *BlockState) SyncToDisk() error {
 	hash := bs.Hash()
 	//apphash | block_hash | block_num | tx_root | receipt_root | time_stamp
-	sqlStr := fmt.Sprintf(`replace into block_records (apphash, block_hash, block_num, tx_root, receipt_root, time_stamp) value
+	sqlStr := fmt.Sprintf(`replace into block_records (apphash, block_hash, block_num, tx_root, receipt_root, time_stamp) values
 	 ('%s', '%s', '%d', '%s', '%s', '%d' )`, hash, bs.BlockHash, bs.BlockNum, bs.TxRoot, bs.TxRepRoot, bs.TimeStamp)
 	_, err := bs.db.Exec(sqlStr)
 	return err
@@ -291,7 +295,7 @@ func NewAPPState(db *sqlx.DB, log log.Logger) *APPState {
 		AccoutSt: NewAccountState(db, log),
 		TxSt:     NewTxState(db, log),
 		TxRepSt:  NewTxRepState(db, log),
-		BlkSt:    NewBlockState(db),
+		BlkSt:    NewBlockState(db, log),
 	}
 }
 
@@ -306,18 +310,26 @@ func (appSt *APPState) Commit() (string, error) {
 
 	for iter := range appSt.TxSt.Txs {
 		if err := vm.ExecuteTx(appSt.TxSt.Txs[iter]); err != nil {
-			appSt.TxSt.log.Error("execurate transaction err: ", err.Error())
+			appSt.TxSt.log.Error("execurate transaction failed", "err", err.Error())
 		}
 	}
 
 	// sync account state
-	appSt.AccoutSt.SyncToDisk()
+	if err := appSt.AccoutSt.SyncToDisk(); err != nil {
+		appSt.AccoutSt.log.Error("account state sync faild ", "err", err.Error())
+	}
 
 	// sync tx state
-	txRoot, _ := appSt.TxSt.SyncToDisk(appSt.HeadSt.CurBlockNum)
+	txRoot, err := appSt.TxSt.SyncToDisk(appSt.HeadSt.CurBlockNum)
+	if err != nil {
+		appSt.TxSt.log.Error("tx state sync faild ", "err", err.Error())
+	}
 
 	// sync tx receipt state
-	txrepRoot, _ := appSt.TxRepSt.SyncToDisk(appSt.HeadSt.CurBlockNum)
+	txrepRoot, err := appSt.TxRepSt.SyncToDisk(appSt.HeadSt.CurBlockNum)
+	if err != nil {
+		appSt.TxRepSt.log.Error("tx receipt state sync faild ", "err", err.Error())
+	}
 
 	// upadte block state
 	appSt.BlkSt.BlockHash = appSt.HeadSt.CurBlockHash
@@ -325,13 +337,19 @@ func (appSt *APPState) Commit() (string, error) {
 	appSt.BlkSt.TxRoot = txRoot
 	appSt.BlkSt.TxRepRoot = txrepRoot
 	appSt.BlkSt.TimeStamp = time.Now().Unix()
-	appSt.BlkSt.SyncToDisk()
+	if err := appSt.BlkSt.SyncToDisk(); err != nil {
+		appSt.BlkSt.log.Error("block state sync faild ", "err", err.Error())
+	}
+	appSt.BlkSt.log.Info("show blockinfo", "blocknum", appSt.BlkSt.BlockNum, "txroot", appSt.BlkSt.TxRoot, "txreproot", appSt.BlkSt.TxRepRoot,
+		"blockhash", appSt.BlkSt.BlockHash, "apphash", appSt.BlkSt.Hash(), "time", appSt.BlkSt.TimeStamp)
 
 	// todo:: all tx's fee need be processed
-	appSt.HeadSt.CurAPPHash = appSt.BlkSt.Hash()
+	appSt.HeadSt.CurAPPHash = appSt.BlkSt.APPHash
 
 	// sync state
-	appSt.HeadSt.SyncToDisk()
+	if err := appSt.HeadSt.SyncToDisk(); err != nil {
+		appSt.HeadSt.log.Error("header state sync faild ", "err", err.Error())
+	}
 
 	return appSt.HeadSt.CurAPPHash, nil
 }

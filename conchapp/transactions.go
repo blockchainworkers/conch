@@ -13,6 +13,8 @@ import (
 	"sort"
 )
 
+var nilHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
 // Transactions list of Transaction
 type Transactions []*Transaction
 
@@ -26,6 +28,9 @@ func (txs Transactions) HashRoot() string {
 		hasers = append(hasers, (txs)[i])
 	}
 	h := merkle.SimpleHashFromHashers(hasers)
+	if h == nil {
+		return nilHash
+	}
 	return hex.EncodeToString(h)
 }
 
@@ -55,20 +60,26 @@ type Transaction struct {
 }
 
 // DecodeNewTx decode a new tx
-func DecodeNewTx(date []byte) (*Transaction, error) {
+func DecodeNewTx(data []byte) (*Transaction, error) {
 	var tx Transaction
-	err := json.Unmarshal(date, &tx)
+	dat, err := base64.StdEncoding.DecodeString(string(data))
+	if err != nil {
+		return &tx, err
+	}
+
+	err = json.Unmarshal(dat, &tx)
 	return &tx, err
 }
 
 // BuildNewTx create a new tx
-func BuildNewTx(sender, receive, input, nonce string, time, refBlock, expired int64) *Transaction {
+func BuildNewTx(sender, receive, input, nonce, value string, time, refBlock, expired int64) *Transaction {
 	return &Transaction{
 		Sender:      sender,
 		Receiver:    receive,
 		Input:       input,
 		Nonce:       nonce,
 		TimeStamp:   time,
+		Value:       value,
 		RefBlockNum: refBlock,
 		ExpiredNum:  int(expired),
 	}
@@ -156,13 +167,21 @@ func (tx *Transaction) FeeCalc() *big.Int {
 	return baseCharge.Add(baseCharge, inputCharg)
 }
 
+// Serialization json tx and base64
+func (tx *Transaction) Serialization() string {
+	// if tx.input is empty we only charge an base fee 100 gravel
+	// now 1 conch == 10**8 gravel
+	dat, _ := json.Marshal(tx)
+	return base64.StdEncoding.EncodeToString(dat)
+}
+
 // -------priv func ----
 
 func (tx *Transaction) signCache(privKey crypto.PrivKey) ([]byte, error) {
 	if tx.Cache.sign != nil {
 		return tx.Cache.sign, nil
 	}
-	sign, err := privKey.Sign(tx.hashCache())
+	sign, err := privKey.(secp256k1.PrivKeySecp256k1).SignCompact(tx.hashCache())
 	if err == nil {
 		tx.Cache.sign = sign
 	}
@@ -250,6 +269,9 @@ func (txrp TransactionReceipts) HashRoot() string {
 		hasers = append(hasers, txrp[i])
 	}
 	h := merkle.SimpleHashFromHashers(hasers)
+	if h == nil {
+		return nilHash
+	}
 	return hex.EncodeToString(h)
 }
 

@@ -1,11 +1,11 @@
 package conchapp
 
 import (
+	"encoding/hex"
 	"github.com/blockchainworkers/conch/abci/types"
 	"math/big"
 	"os"
 	//dbm "github.com/blockchainworkers/conch/libs/db"
-	"encoding/json"
 	"github.com/blockchainworkers/conch/libs/log"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3" // import sqlite
@@ -38,6 +38,7 @@ func NewConchApplication(dbDir string) *ConchApplication {
 
 	//init logger
 	logInst := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+	logInst.With("module", "app")
 	// init appsate
 	appSt := NewAPPState(db, logInst)
 	return &ConchApplication{
@@ -56,12 +57,12 @@ func (app *ConchApplication) Info(req types.RequestInfo) types.ResponseInfo {
 	// load state from
 	err := app.state.HeadSt.LoadHeaderState()
 	if err != nil {
-		app.logger.Error("load state from db err , ", err.Error())
+		app.logger.Error("load state from db failed", "err", err.Error())
 		panic(err)
 	}
 
 	var res types.ResponseInfo
-	res.LastBlockAppHash = []byte(app.state.HeadSt.CurAPPHash)
+	res.LastBlockAppHash, _ = hex.DecodeString(app.state.HeadSt.CurAPPHash)
 	res.LastBlockHeight = app.state.HeadSt.CurBlockNum
 	res.Version = "v0.01"
 	res.Data = "conch is an virtual currency"
@@ -78,17 +79,23 @@ func (app *ConchApplication) SetOption(req types.RequestSetOption) types.Respons
 //DeliverTx deleiver an transaction to app
 func (app *ConchApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	// put tx in cahce then exec them when commit
-	var trans Transaction
-	err := json.Unmarshal(tx, &trans)
+	// txStr := string(tx)
+	// if len(txStr) < 3 {
+	// 	return types.ResponseDeliverTx{Code: 1, Info: "invalid tx", Log: "invalid tx"}
+	// }
+	// txS := txStr[1 : len(txStr)-2]
+
+	//var trans Transaction
+	trans, err := DecodeNewTx([]byte(tx))
 	if err != nil {
-		app.logger.Error("when deliver tx, tx can not be UnMarshal, tx: ", string(tx))
+		app.logger.Error("when deliver tx, tx can not be UnMarshal", "tx", string(tx), "err", err.Error())
 		return types.ResponseDeliverTx{Code: 1, Info: err.Error(), Log: "deliver tx err in json unmarshal"}
 	}
 
 	// try load account amount
 	account, err := app.state.AccoutSt.LoadAccount(trans.Sender)
 	if err != nil {
-		app.logger.Error("when deliver tx, load accout info err: ", err.Error())
+		app.logger.Error("when deliver tx, load accout info failed", "err", err.Error())
 		return types.ResponseDeliverTx{Code: 1, Info: err.Error(), Log: "deliver tx err in loading account"}
 	}
 
@@ -108,7 +115,7 @@ func (app *ConchApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 		return types.ResponseDeliverTx{Code: 1, Info: "sign not valid", Log: "deliver tx err in tx sign"}
 	}
 
-	app.state.TxSt.UpdateTx(&trans)
+	app.state.TxSt.UpdateTx(trans)
 	return types.ResponseDeliverTx{Code: types.CodeTypeOK}
 }
 
@@ -117,10 +124,19 @@ func (app *ConchApplication) CheckTx(tx []byte) types.ResponseCheckTx {
 	// 1. tx should be UnMarshal truct
 	// 2. check account amount is enough
 	// 3. check sign is right
-	var trans Transaction
-	err := json.Unmarshal(tx, &trans)
+
+	// app.logger.Error("check tx", "tx", string(tx))
+	// txStr := string(tx)
+	// if len(txStr) < 3 {
+	// 	return types.ResponseCheckTx{Code: 1, Info: "invalid tx", Log: "invalid tx"}
+	// }
+
+	// txS := txStr[1 : len(txStr)-2]
+	// println(txStr, txS)
+	//var trans Transaction
+	trans, err := DecodeNewTx(tx)
 	if err != nil {
-		app.logger.Error("when checking tx, tx can not be UnMarshal, tx: ", string(tx))
+		app.logger.Error("when checking tx, tx can not be UnMarshal", "tx", string(tx), "err", err.Error())
 		return types.ResponseCheckTx{Code: 1, Info: err.Error(), Log: "check tx err in json unmarshal"}
 	}
 
@@ -162,7 +178,8 @@ func (app *ConchApplication) Commit() types.ResponseCommit {
 	if err != nil {
 		app.logger.Error("commit err: ", err.Error())
 	}
-	return types.ResponseCommit{Data: []byte(appHash)}
+	appHashByte, _ := hex.DecodeString(appHash)
+	return types.ResponseCommit{Data: appHashByte}
 }
 
 // Query for query info
@@ -183,7 +200,7 @@ func (app *ConchApplication) InitChain(req types.RequestInitChain) types.Respons
 
 //BeginBlock Track the block hash and header information
 func (app *ConchApplication) BeginBlock(req types.RequestBeginBlock) types.ResponseBeginBlock {
-	app.state.HeadSt.CurBlockHash = string(req.Hash)
+	app.state.HeadSt.CurBlockHash = hex.EncodeToString(req.Hash)
 	// req.ByzantineValidators
 	return types.ResponseBeginBlock{}
 }

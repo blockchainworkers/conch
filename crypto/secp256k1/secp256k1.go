@@ -53,6 +53,12 @@ func (privKey PrivKeySecp256k1) Sign(msg []byte) ([]byte, error) {
 	return sig.Serialize(), nil
 }
 
+// SignCompact compact sign
+func (privKey PrivKeySecp256k1) SignCompact(hash []byte) ([]byte, error) {
+	priv, _ := secp256k1.PrivKeyFromBytes(secp256k1.S256(), privKey[:])
+	return secp256k1.SignCompact(secp256k1.S256(), priv, hash, true)
+}
+
 // PubKey performs the point-scalar multiplication from the privKey on the
 // generator point to get the pubkey.
 func (privKey PrivKeySecp256k1) PubKey() crypto.PubKey {
@@ -159,7 +165,7 @@ func (pubKey PubKeySecp256k1) Equals(other crypto.PubKey) bool {
 	return false
 }
 
-// RecoverPublicKey from sign and hash to recover public. now only support secp256k1
+// RecoverPublicKey from compact sign and hash to recover public. now only support secp256k1
 func RecoverPublicKey(sign, hash []byte) (crypto.PubKey, error) {
 	pubkeyObj, _, err := secp256k1.RecoverCompact(secp256k1.S256(), sign, hash)
 	if err != nil {

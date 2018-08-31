@@ -18,6 +18,7 @@ func NewVMActuator(state *APPState) *VMActuator {
 
 // ExecuteTx exec tx and update state
 func (vm *VMActuator) ExecuteTx(tx *Transaction) error {
+
 	// fee
 	fee := tx.FeeCalc()
 	vm.appSt.HeadSt.Fee.Add(vm.appSt.HeadSt.Fee, fee)
@@ -46,6 +47,8 @@ func (vm *VMActuator) ExecuteTx(tx *Transaction) error {
 	// exec success
 	sender.Amount.Sub(sender.Amount, big.NewInt(0).Add(value, fee))
 	receiver.Amount.Add(receiver.Amount, value)
+	vm.appSt.AccoutSt.UpdateAccountCache(sender)
+	vm.appSt.AccoutSt.UpdateAccountCache(receiver)
 	vm.appSt.TxRepSt.UpdateTxRep(txrp)
 	return nil
 }
