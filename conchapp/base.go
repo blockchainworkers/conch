@@ -41,6 +41,9 @@ func NewConchApplication(dbDir string) *ConchApplication {
 	logInst.With("module", "app")
 	// init appsate
 	appSt := NewAPPState(db, logInst)
+	// init queryhandler
+	querys.appSt = appSt
+	querys.Init()
 	return &ConchApplication{
 		logger: logInst,
 		state:  appSt,
@@ -184,7 +187,8 @@ func (app *ConchApplication) Commit() types.ResponseCommit {
 
 // Query for query info
 func (app *ConchApplication) Query(reqQuery types.RequestQuery) types.ResponseQuery {
-	return types.ResponseQuery{Code: types.CodeTypeOK}
+
+	return querys.Query(reqQuery)
 }
 
 //InitChain Save the validators in the merkle tree
@@ -201,8 +205,13 @@ func (app *ConchApplication) InitChain(req types.RequestInitChain) types.Respons
 //BeginBlock Track the block hash and header information
 func (app *ConchApplication) BeginBlock(req types.RequestBeginBlock) types.ResponseBeginBlock {
 	app.state.HeadSt.CurBlockHash = hex.EncodeToString(req.Hash)
+
+	// println("------------valitor--------- ", req.Header.Proposer.Power, hex.EncodeToString(req.Header.Proposer.PubKey.Data), hex.EncodeToString(req.Header.ValidatorsHash))
 	//app.ValUpdates
-	// req.ByzantineValidators
+	// for iter := range req.ByzantineValidators {
+
+	// 	println("--------ByzantineValidators----- ", "power: ", req.ByzantineValidators[iter].Validator.Power, " pubkey: ", req.ByzantineValidators[iter].Validator.PubKey.String())
+	// }
 	return types.ResponseBeginBlock{}
 }
 
@@ -210,5 +219,5 @@ func (app *ConchApplication) BeginBlock(req types.RequestBeginBlock) types.Respo
 func (app *ConchApplication) EndBlock(req types.RequestEndBlock) types.ResponseEndBlock {
 	app.state.HeadSt.CurBlockNum = req.Height
 
-	return types.ResponseEndBlock{ValidatorUpdates: app.ValUpdates}
+	return types.ResponseEndBlock{}
 }

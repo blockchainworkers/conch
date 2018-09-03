@@ -152,6 +152,45 @@ func (txState *TxState) SyncToDisk(height int64) (hashRoot string, err error) {
 	return
 }
 
+//QueryTxsByAccount query account related tx
+func (txState *TxState) QueryTxsByAccount(account string, start, offset int64) Transactions {
+
+	var txs Transactions
+	// id, sender, receiver, amount, input, expired, time_stamp, nonce, ref_block_num, block_num, sign
+	sqlStr := "select id, sender, receiver, amount, input, expired, time_stamp, nonce, ref_block_num from  transaction_records where sender=? or receiver=? limit ?, ?;"
+	rows, err := txState.db.Queryx(sqlStr, account, account, start, offset)
+	if err != nil {
+		txState.log.Error("query txs by account failed", "err", err.Error())
+		return txs
+	}
+
+	for rows.Next() {
+		var tmp Transaction
+		rows.Scan(&tmp.ID, &tmp.Sender, &tmp.Receiver, &tmp.Value, &tmp.Input, &tmp.ExpiredNum, &tmp.TimeStamp, &tmp.Nonce, &tmp.RefBlockNum)
+		txs = append(txs, &tmp)
+	}
+	return txs
+}
+
+//QueryTxByID query tx by id
+func (txState *TxState) QueryTxByID(id string) Transaction {
+
+	var tx Transaction
+	// id, sender, receiver, amount, input, expired, time_stamp, nonce, ref_block_num, block_num, sign
+	sqlStr := "select id, sender, receiver, amount, input, expired, time_stamp, nonce, ref_block_num from  transaction_records where id=? ;"
+	row := txState.db.QueryRowx(sqlStr, id)
+
+	err := row.Scan(&tx.ID, &tx.Sender, &tx.Receiver, &tx.Value, &tx.Input, &tx.ExpiredNum, &tx.TimeStamp, &tx.Nonce, &tx.RefBlockNum)
+	if err == sql.ErrNoRows {
+		return tx
+	}
+
+	if err != nil {
+		txState.log.Error("query txs by id failed", "err", err.Error())
+	}
+	return tx
+}
+
 // TxRepState means current tx receipt's info
 type TxRepState struct {
 	sync.RWMutex
@@ -286,6 +325,7 @@ type APPState struct {
 	TxSt     *TxState
 	TxRepSt  *TxRepState
 	BlkSt    *BlockState
+	DB       *sqlx.DB
 }
 
 //NewAPPState return app state init db (if db is not exist create the database and tables)
@@ -296,6 +336,7 @@ func NewAPPState(db *sqlx.DB, log log.Logger) *APPState {
 		TxSt:     NewTxState(db, log),
 		TxRepSt:  NewTxRepState(db, log),
 		BlkSt:    NewBlockState(db, log),
+		DB:       db,
 	}
 }
 

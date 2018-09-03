@@ -42,6 +42,7 @@ func (txs Transactions) AppendTx(tx *Transaction) Transactions {
 
 // Transaction tx type
 type Transaction struct {
+	ID          string `json:"id"`
 	Sender      string `json:"sender"`
 	Receiver    string `json:"receiver"`
 	Input       string `json:"input"`
@@ -142,6 +143,7 @@ func (tx *Transaction) TxID() string {
 	if tx.Cache.id == "" {
 		tx.Cache.id = hex.EncodeToString(tx.hashCache())
 	}
+	tx.ID = tx.Cache.id
 	return tx.Cache.id
 }
 
