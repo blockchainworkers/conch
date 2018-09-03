@@ -140,7 +140,7 @@ func initDatabase(db *sqlx.DB) error {
 		content TEXT not null default '{}'
 	);
 
-	insert into funds (address, amount, create_time, update_time) values ('CONCHcd1sGBDdmQasWZEVfe6x6y3iPij1g67LZJ', '86400', '1535630312', '1535630312');
+	insert into funds (address, amount, create_time, update_time) values ('CONCHcd1sGBDdmQasWZEVfe6x6y3iPij1g67LZJ', '8640000000000', '1535630312', '1535630312');
 	`
 
 	_, err := db.Exec(sqlStr)

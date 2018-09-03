@@ -28,6 +28,8 @@ build_race:
 install:
 	CGO_ENABLED=0 go install $(BUILD_FLAGS) -tags $(BUILD_TAGS) ./cmd/tendermint
 
+build_docker:
+	docker build -t blockchainworkers/conch:latest ./docker/
 ########################################
 ### Protobuf
 
