@@ -205,7 +205,7 @@ func (app *ConchApplication) InitChain(req types.RequestInitChain) types.Respons
 //BeginBlock Track the block hash and header information
 func (app *ConchApplication) BeginBlock(req types.RequestBeginBlock) types.ResponseBeginBlock {
 	app.state.HeadSt.CurBlockHash = hex.EncodeToString(req.Hash)
-
+	app.state.HeadSt.TimeStamp = req.Header.Time.UTC().Unix()
 	// println("------------valitor--------- ", req.Header.Proposer.Power, hex.EncodeToString(req.Header.Proposer.PubKey.Data), hex.EncodeToString(req.Header.ValidatorsHash))
 	//app.ValUpdates
 	// for iter := range req.ByzantineValidators {

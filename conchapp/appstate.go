@@ -11,7 +11,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"math/big"
 	"sync"
-	"time"
 )
 
 // AccountState means current account's info
@@ -245,6 +244,7 @@ type HeaderState struct {
 	CurBlockNum  int64  `json:"cur_block_num"`
 	CurBlockHash string `json:"cur_block_hash"`
 	CurAPPHash   string `json:"cur_app_hash"`
+	TimeStamp    int64  `json:"time_stamp"`
 	Fee          *big.Int
 	db           *sqlx.DB
 	log          log.Logger
@@ -377,7 +377,7 @@ func (appSt *APPState) Commit() (string, error) {
 	appSt.BlkSt.BlockNum = appSt.HeadSt.CurBlockNum
 	appSt.BlkSt.TxRoot = txRoot
 	appSt.BlkSt.TxRepRoot = txrepRoot
-	appSt.BlkSt.TimeStamp = time.Now().Unix()
+	appSt.BlkSt.TimeStamp = appSt.HeadSt.TimeStamp
 	if err := appSt.BlkSt.SyncToDisk(); err != nil {
 		appSt.BlkSt.log.Error("block state sync faild ", "err", err.Error())
 	}

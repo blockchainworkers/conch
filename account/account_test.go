@@ -45,4 +45,9 @@ func TestBase64ToHex(t *testing.T) {
 	copy(pubkeyBytes[:], pub)
 	t.Log(strings.ToUpper(hex.EncodeToString(pubkeyBytes.Address())))
 
+	// pKpdiPcjV1iUaCGeXr4NxYqzwpX4nybeB242Xcr2GlTWqccR4XngnCMQmdmgJ7I+nlV0Rnoa3vMFMaVH2yOP4Q==
+	priv, _ := base64.StdEncoding.DecodeString("pKpdiPcjV1iUaCGeXr4NxYqzwpX4nybeB242Xcr2GlTWqccR4XngnCMQmdmgJ7I+nlV0Rnoa3vMFMaVH2yOP4Q==")
+	var privkeyBytes secp256k1.PrivKeySecp256k1
+	copy(privkeyBytes[:], priv)
+	t.Log(hex.EncodeToString(privkeyBytes.PubKey().Address()))
 }
