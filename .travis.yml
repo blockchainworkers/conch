@@ -10,5 +10,5 @@ before_install:
 - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
 script:
-- make
+- docker build -t blockchainworkers/conch:latest ./docker/
 - docker push blockchainworkers/conch
