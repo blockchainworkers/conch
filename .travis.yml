@@ -2,6 +2,10 @@ sudo: required
 
 language: go
 
+compiler:
+  - clang
+  - gcc
+
 services:
   - docker
 
