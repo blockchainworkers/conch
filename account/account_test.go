@@ -4,7 +4,9 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"github.com/blockchainworkers/conch/crypto"
+	"github.com/blockchainworkers/conch/crypto/secp256k1"
 	"github.com/btcsuite/btcutil/base58"
+	"strings"
 	"testing"
 )
 
@@ -36,3 +38,11 @@ func TestGenerateAccount(t *testing.T) {
 // 4d9502a6ec8d978ca27004880715e4417ed4f61130301f1030b48747d1a6df1c(TZUCpuyNl4yicASIBxXkQX7U9hEwMB8QMLSHR9Gm3xw=),  A7C1pYP/mrQ6Jnp3oQMpAVKpUOnAQjKpLA95e7MbV/eR
 // 2377e8542ce25cb01043d038fb864137931f94c4c4bb699b806149c575609e25(I3foVCziXLAQQ9A4+4ZBN5MflMTEu2mbgGFJxXVgniU=), AhIznLQAiqHR7IHeGfK+pUlevJXlOIDa5hzcZayEwJzb
 // 449c27e80a3dfdbe1854b83df3ca6484bab0fcba68c82ad3c141341aa46cba0e(RJwn6Ao9/b4YVLg988pkhLqw/LpoyCrTwUE0GqRsug4=), A10lfiB9p7xqte+3AnaJoEnsWKRJO3/JLClq0KweLeku
+
+func TestBase64ToHex(t *testing.T) {
+	pub, _ := base64.StdEncoding.DecodeString("A7C1pYP/mrQ6Jnp3oQMpAVKpUOnAQjKpLA95e7MbV/eR")
+	var pubkeyBytes secp256k1.PubKeySecp256k1
+	copy(pubkeyBytes[:], pub)
+	t.Log(strings.ToUpper(hex.EncodeToString(pubkeyBytes.Address())))
+
+}
