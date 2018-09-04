@@ -1,6 +1,7 @@
 # Conch(贝壳)
 
-[![Build Status](https://travis-ci.org/blockchainworkers/conch.svg?branch=master)](https://travis-ci.org/blockchainworkers/conch)
+[![Build Status](https://travis-ci.com/blockchainworkers/conch.svg?branch=master)](https://travis-ci.com/blockchainworkers/conch)
+[![GoDoc](https://godoc.org/github.com/blockchainworkers/conch?status.svg)](https://godoc.org/github.com/blockchainworkers/conch)
 
 
 一个基于tendermint的共识机制引擎实现的简单虚拟货币 
