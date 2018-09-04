@@ -6,7 +6,9 @@ ENV HOME /opt/conch
 
 
 # 更新软件包
-RUN mkdir -p /opt/conch/bin && apk update && apk add curl && apk add git && apk add gcc
+RUN mkdir -p /opt/conch/bin && apk update && apk add curl && apk add git && apk add gcc && \
+apk add libc-dev
+
 #    apt-get install -y git && mkdir -p /bitcoin
 
 # 安装守护进程
