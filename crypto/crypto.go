@@ -29,3 +29,13 @@ type Symmetric interface {
 	Encrypt(plaintext []byte, secret []byte) (ciphertext []byte)
 	Decrypt(ciphertext []byte, secret []byte) (plaintext []byte, err error)
 }
+
+// CreateAddress creates address given the bytes and the nonce 根据账号地址和nonce创建合约地址
+func CreateAddress(b Address, nonce string) Address {
+	// todo::
+	var buf []byte
+	buf = append(buf, b...)
+	buf = append(buf, []byte(nonce)...)
+	// data, _ := rlp.EncodeToBytes([]interface{}{b, nonce})
+	return Sha256(buf)
+}

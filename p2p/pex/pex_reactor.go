@@ -9,10 +9,10 @@ import (
 
 	"github.com/pkg/errors"
 
-	amino "github.com/tendermint/go-amino"
 	cmn "github.com/blockchainworkers/conch/libs/common"
 	"github.com/blockchainworkers/conch/p2p"
 	"github.com/blockchainworkers/conch/p2p/conn"
+	amino "github.com/tendermint/go-amino"
 )
 
 type Peer = p2p.Peer
